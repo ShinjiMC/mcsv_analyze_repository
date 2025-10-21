@@ -67,5 +67,29 @@ else
         echo "---" >&2
         echo "¡Listo! Versión de Go activa:" >&2
         go version >&2 # Log a stderr
+        #--- Instalar herramientas de análisis ---
+        echo "Verificando herramientas de análisis en Go $GO_VERSION..." >&2
+        # Verificar gocyclo
+        if ! command -v gocyclo &> /dev/null; then
+            echo "Instalando gocyclo..." >&2
+            go install github.com/fzipp/gocyclo/cmd/gocyclo@latest
+        else
+            echo "✔ gocyclo ya está instalado." >&2
+        fi
+
+        # Verificar golangci-lint
+        if ! command -v golangci-lint &> /dev/null; then
+            echo "Instalando golangci-lint..." >&2
+            go install github.com/golangci/golangci-lint/cmd/golangci-lint@latest
+        else
+            echo "✔ golangci-lint ya está instalado." >&2
+        fi
+
+        echo "---" >&2
+        echo "Herramientas disponibles:" >&2
+        command -v gocyclo >&2
+        command -v golangci-lint >&2
+
+        echo "Entorno Go $GO_VERSION listo con herramientas de análisis." >&2
     fi
 fi

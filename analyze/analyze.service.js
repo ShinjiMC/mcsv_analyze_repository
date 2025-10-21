@@ -10,11 +10,11 @@ dotenv.config();
 
 const ANALYSIS_SCRIPTS = [
   "churn.sh",
-  // "cohesion.sh",
-  // "complexity.sh",
-  // "coupling.sh",
-  // "lint.sh",
-  // "coverage.sh",
+  "cohesion.sh",
+  "complexity.sh",
+  "coupling.sh",
+  "lint.sh",
+  "coverage.sh",
 ];
 const MAIN_DIR = process.cwd();
 const WORKSPACE_DIR = path.join(MAIN_DIR, "..", ".code-analysis-workspace");
