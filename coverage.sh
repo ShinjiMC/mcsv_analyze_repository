@@ -15,7 +15,18 @@ fi
 
 OUTPUT_DIR=$(dirname "$OUTPUT_FILE")
 mkdir -p "$OUTPUT_DIR"
-echo "mode: set" > "${OUTPUT_FILE}"
+GO_MOD_PATH="$REPO_PATH/go.mod"
+if [ -f "$GO_MOD_PATH" ]; then
+    module_name=$(grep '^module' "$GO_MOD_PATH" | awk '{print $2}')
+    if [ -n "$module_name" ]; then
+        echo "$module_name" > "${OUTPUT_FILE}"
+    else
+        echo "Error: No se encontró la línea 'module' en $GO_MOD_PATH" > "${OUTPUT_FILE}"
+    fi
+else
+    echo "Error: No se halló go.mod en el path $REPO_PATH" > "${OUTPUT_FILE}"
+fi
+echo "mode: set" >> "${OUTPUT_FILE}"
 
 cd "$REPO_PATH" || { echo "Error: No se pudo entrar al directorio $REPO_PATH" >&2; exit 1; }
 echo "Calculando cobertura de tests (go test)... (en $PWD)" >&2

@@ -26,21 +26,21 @@ for dir in "${packages[@]}"; do
     relative_dir=${dir#"$PWD/"}
     lint_output=$(golangci-lint run --fix=false "${relative_dir}")
     all_files=($(find "${relative_dir}" -maxdepth 1 -name "*.go" 2>/dev/null))
-    summary_only=$(echo "$lint_output" | grep -E '^[0-9]+ issues:|^\* ')
     errors_only=$(echo "$lint_output" | grep -E '^[a-zA-Z0-9_/.-]+\.go:')
     for file in "${all_files[@]}"; do
-        # Filtra los errores de este archivo
         file_errors=$(echo "$errors_only" | grep "^${file}:")
         if [ -n "$file_errors" ]; then
+            issue_count=$(echo "$file_errors" | wc -l)
+            file_summary=$(echo "$file_errors" | grep -o '([a-z_-]\+)$' | sed 's/[()]//g' | sort | uniq -c | awk '{print "* " $2 ": " $1}')
             {
                 echo "${file}"
-                echo "$summary_only"
+                echo "${issue_count} issues:"
+                echo "$file_summary"
                 while IFS= read -r line; do
                     echo "$line"
                     echo "$lint_output" | awk -v pattern="$line" '
                         $0 == pattern {p=1; next}
                         p && /^[[:space:]]/ {print; next}
-                        p && /^\^/ {print; next}
                         p && !/^[[:space:]]|\^/ {p=0}
                     '
                 done <<< "$file_errors"

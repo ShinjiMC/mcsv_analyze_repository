@@ -53,6 +53,16 @@ curl -X POST http://localhost:4000/analyze/simulate \
  -d @- \
  | jq
 
+jq -n \
+--arg repoUrl "https://github.com/kubernetes/kubernetes" \
+--arg tagName "v1.34.1" \
+--slurpfile commits kubernetes_v1.34.1.json \
+'{$repoUrl, $tagName, commits: $commits[0]}' | \
+curl -X POST http://localhost:4000/analyze/simulate \
+-H "Content-Type: application/json" \
+-d @- | \
+jq
+
 ./churn.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/churn.out 8c0988abb62c6e4fa13be86c56a38ed083978ecb
 
 ./coupling.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/coupling.out

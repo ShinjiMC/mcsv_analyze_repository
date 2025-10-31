@@ -2,8 +2,7 @@
 
 REPO_PATH=$1
 OUTPUT_FILE=$2
-PARENT_COMMIT=$3
-CURRENT_COMMIT="HEAD"
+TIME_WINDOW="9 months ago"
 
 if [ -z "$REPO_PATH" ] || [ -z "$OUTPUT_FILE" ]; then
     echo "Error: Se requieren 2 argumentos: <ruta_del_repo> <ruta_del_output>" >&2
@@ -18,33 +17,47 @@ mkdir -p "$OUTPUT_DIR"
 echo "file added deleted total" | tee -a "$OUTPUT_FILE"
 
 echo "--- (Obteniendo lista de archivos .go en HEAD) ---" >&2
-all_go_files=($(git -C "$REPO_PATH" ls-files --exclude-standard "*.go" | grep -v "^vendor/"))
-echo "--- (Encontrados ${#all_go_files[@]} archivos .go) ---" >&2
 
-declare -A churn_map
+declare -A head_files_map
+while IFS= read -r file; do
+    head_files_map["$file"]=1
+done < <(git -C "$REPO_PATH" ls-files --exclude-standard "*.go" | grep -v "^vendor/")
+echo "--- (Encontrados ${#head_files_map[@]} archivos .go en HEAD) ---" >&2
 
-if [ -n "$PARENT_COMMIT" ]; then
-    echo "--- (Comparando HEAD con ${PARENT_COMMIT:0:7}) ---" >&2
-    
-    while read -r added removed file; do
-        if [[ "$file" == *.go ]]; then
-            [[ "$added" =~ ^[0-9]+$ ]] || added=0
-            [[ "$removed" =~ ^[0-9]+$ ]] || removed=0
-            total=$((added + removed))
-            churn_map["$file"]="$added $removed $total"
-        fi
-    done < <(git -C "$REPO_PATH" diff --numstat "$PARENT_COMMIT" "$CURRENT_COMMIT")
+declare -A added_map
+declare -A removed_map
 
-else
-    echo "--- (Commit raíz, no hay churn) ---" >&2
-fi
+echo "--- (Calculando churn ac|umulativo de los últimos $TIME_WINDOW desde HEAD) ---" >&2
 
-for file in "${all_go_files[@]}"; do
-    if [ -n "${churn_map[$file]}" ]; then
-        echo "$file ${churn_map[$file]}" | tee -a "$OUTPUT_FILE"
-    else
-        echo "$file 0 0 0" | tee -a "$OUTPUT_FILE"
+while read -r added removed file; do
+    # --- FIX ---
+    # Si 'file' está vacío (porque 'read' leyó una línea en blanco),
+    # salta esta iteración.
+    if [ -z "$file" ]; then
+        continue
     fi
+    # --- FIN FIX ---
+
+    if [[ -n "${head_files_map[$file]}" ]]; then # Esta era tu línea 33
+        [[ "$added" =~ ^[0-9]+$ ]] || added=0
+        [[ "$removed" =~ ^[0-9]+$ ]] || removed=0
+        added_map["$file"]=$(( ${added_map[$file]:-0} + added ))
+        removed_map["$file"]=$(( ${removed_map[$file]:-0} + removed ))
+    fi
+done < <(git -C "$REPO_PATH" log --since="$TIME_WINDOW" --numstat --pretty=format:"" -- "*.go" | grep -v "^vendor/")
+
+# Este bloque estaba duplicado en tu script, lo elimino para limpiar
+# all_go_files=($(git -C "$REPO_PATH" ls-files --exclude-standard "*.go" | grep -v "^vendor/"))
+# echo "--- (Encontrados ${#all_go_files[@]} archivos .go) ---" >&2
+
+echo "--- (Generando reporte final) ---" >&2
+
+for file in "${!head_files_map[@]}"; do
+    added=${added_map[$file]:-0}
+    removed=${removed_map[$file]:-0}
+    total=$((added + removed))
+    
+    echo "$file $added $removed $total" | tee -a "$OUTPUT_FILE"
 done
 
-echo "--- (Análisis de churn completado) ---" >&2
+echo "--- (Análisis de churn acumulativo completado) ---" >&2
