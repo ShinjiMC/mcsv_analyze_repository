@@ -65,6 +65,8 @@ jq
 
 ./churn.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/churn.out 8c0988abb62c6e4fa13be86c56a38ed083978ecb
 
+./churn_2.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.34.4/churn_2.out 8c0988abb62c6e4fa13be86c56a38ed083978ecb
+
 ./coupling.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/coupling.out
 
 ./cohesion.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/cohesion.out
@@ -73,7 +75,11 @@ jq
 
 ./lint.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/lint.out
 
+./lint_2.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.33.4/lint_2.out
+
 ./coverage.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.31.4/coverage.out
+
+./halstead.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/1.33.4/halstead.out
 
 source ./setup_go.sh /home/shinji/Escritorio/Proyectos/.code-analysis-workspace/analysis_clones/kubernetes
 

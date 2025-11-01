@@ -1,0 +1,18 @@
+version: 2
+
+run:
+  relative-path-mode: wd
+
+linters:
+  disable-all: true
+  enable:
+    - nestif
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+
+formatters:
+  enable:
+    - goimports

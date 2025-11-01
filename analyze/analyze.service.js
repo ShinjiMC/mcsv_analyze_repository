@@ -9,12 +9,13 @@ import { promisify } from "util";
 dotenv.config();
 
 const ANALYSIS_SCRIPTS = [
-  "churn.sh",
+  // "churn_2.sh",
   // "cohesion.sh",
   // "complexity.sh",
   // "coupling.sh",
-  // "lint.sh",
+  // "lint_2.sh",
   // "coverage.sh",
+  "halstead.sh",
 ];
 const MAIN_DIR = process.cwd();
 const WORKSPACE_DIR = path.join(MAIN_DIR, "..", ".code-analysis-workspace");
@@ -155,7 +156,7 @@ export async function runSimulation(commits, repoUrl) {
         repoDir
       )}`;
       let analysisCmdPart;
-      if (scriptName === "churn.sh") {
+      if (scriptName === "churn_2.sh") {
         const parentSha = parent || "";
         analysisCmdPart = `${quote(analysisScriptPath)} ${quote(
           repoDir
@@ -298,7 +299,7 @@ export async function runSimulation2(commits, repoUrl, tagName) {
       )}`;
       let analysisCmdPart;
 
-      if (scriptName === "churn.sh") {
+      if (scriptName === "churn_2.sh") {
         analysisCmdPart = `${quote(analysisScriptPath)} ${quote(
           repoDir
         )} ${quote(outputFilePath)}`;

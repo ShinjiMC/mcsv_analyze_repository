@@ -85,10 +85,19 @@ else
             echo "✔ golangci-lint ya está instalado." >&2
         fi
 
+        # Verificar halstead
+        if ! command -v halstead &> /dev/null; then
+            echo "Instalando halstead..." >&2
+            go install github.com/luisantonioig/halstead-metrics/cmd/halstead@latest
+        else
+            echo "✔ halstead ya está instalado." >&2
+        fi
+
         echo "---" >&2
         echo "Herramientas disponibles:" >&2
         command -v gocyclo >&2
         command -v golangci-lint >&2
+        command -v halstead >&2
 
         echo "Entorno Go $GO_VERSION listo con herramientas de análisis." >&2
     fi

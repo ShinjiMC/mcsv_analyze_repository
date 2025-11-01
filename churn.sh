@@ -30,26 +30,16 @@ declare -A removed_map
 echo "--- (Calculando churn ac|umulativo de los últimos $TIME_WINDOW desde HEAD) ---" >&2
 
 while read -r added removed file; do
-    # --- FIX ---
-    # Si 'file' está vacío (porque 'read' leyó una línea en blanco),
-    # salta esta iteración.
     if [ -z "$file" ]; then
         continue
     fi
-    # --- FIN FIX ---
-
-    if [[ -n "${head_files_map[$file]}" ]]; then # Esta era tu línea 33
+    if [[ -n "${head_files_map[$file]}" ]]; then
         [[ "$added" =~ ^[0-9]+$ ]] || added=0
         [[ "$removed" =~ ^[0-9]+$ ]] || removed=0
         added_map["$file"]=$(( ${added_map[$file]:-0} + added ))
         removed_map["$file"]=$(( ${removed_map[$file]:-0} + removed ))
     fi
 done < <(git -C "$REPO_PATH" log --since="$TIME_WINDOW" --numstat --pretty=format:"" -- "*.go" | grep -v "^vendor/")
-
-# Este bloque estaba duplicado en tu script, lo elimino para limpiar
-# all_go_files=($(git -C "$REPO_PATH" ls-files --exclude-standard "*.go" | grep -v "^vendor/"))
-# echo "--- (Encontrados ${#all_go_files[@]} archivos .go) ---" >&2
-
 echo "--- (Generando reporte final) ---" >&2
 
 for file in "${!head_files_map[@]}"; do
