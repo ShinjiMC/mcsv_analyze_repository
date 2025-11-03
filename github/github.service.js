@@ -39,6 +39,231 @@ async function graphqlRequest(query, variables = {}) {
   return data.data;
 }
 
+export async function getRefs(repoUrl) {
+  const { owner, repo } = parseRepoUrl(repoUrl);
+  console.log(`Buscando todas las ramas y tags para ${owner}/${repo}...`);
+  const defaultBranchQuery = `
+    query($owner: String!, $repo: String!) {
+      repository(owner: $owner, name: $repo) {
+        defaultBranchRef {
+          name
+        }
+      }
+    }
+  `;
+  const defaultBranchData = await graphqlRequest(defaultBranchQuery, {
+    owner,
+    repo,
+  });
+  const defaultBranchName = defaultBranchData.repository.defaultBranchRef?.name;
+  const branchesQuery = `
+    query($owner: String!, $repo: String!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        branches: refs(
+          refPrefix: "refs/heads/",
+          first: 100,
+          after: $cursor
+        ) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            name
+            target {
+              ... on Commit {
+                committedDate
+              }
+            }
+          }
+        }
+      }
+    }
+  `;
+  let branchCursor = null;
+  let hasNextPageBranches = true;
+  const allBranches = [];
+  console.log("Buscando ramas...");
+  while (hasNextPageBranches) {
+    const data = await graphqlRequest(branchesQuery, {
+      owner,
+      repo,
+      cursor: branchCursor,
+    });
+    const branchesData = data.repository.branches;
+    branchesData.nodes.forEach((node) => {
+      allBranches.push({
+        name: node.name,
+        date: node.target?.committedDate
+          ? new Date(node.target.committedDate)
+          : new Date(0),
+      });
+    });
+
+    hasNextPageBranches = branchesData.pageInfo.hasNextPage;
+    branchCursor = branchesData.pageInfo.endCursor;
+  }
+  allBranches.sort((a, b) => {
+    if (a.name === defaultBranchName) return -1;
+    if (b.name === defaultBranchName) return 1;
+    return b.date - a.date;
+  });
+  const sortedBranchNames = allBranches.map((branch) => branch.name);
+  const tagsQuery = `
+    query($owner: String!, $repo: String!, $cursor: String) {
+      repository(owner: $owner, name: $repo) {
+        tags: refs(
+          refPrefix: "refs/tags/",
+          first: 100,
+          after: $cursor,
+          orderBy: { field: TAG_COMMIT_DATE, direction: DESC }
+        ) {
+          pageInfo { hasNextPage endCursor }
+          nodes {
+            name
+          }
+        }
+      }
+    }
+  `;
+  let tagCursor = null;
+  let hasNextPageTags = true;
+  const sortedTagNames = [];
+  console.log("Buscando tags...");
+  while (hasNextPageTags) {
+    const data = await graphqlRequest(tagsQuery, {
+      owner,
+      repo,
+      cursor: tagCursor,
+    });
+    const tagsData = data.repository.tags;
+    tagsData.nodes.forEach((node) => {
+      sortedTagNames.push(node.name);
+    });
+    hasNextPageTags = tagsData.pageInfo.hasNextPage;
+    tagCursor = tagsData.pageInfo.endCursor;
+  }
+  console.log(
+    `Encontrados ${sortedBranchNames.length} branches y ${sortedTagNames.length} tags.`
+  );
+  return { branches: sortedBranchNames, tags: sortedTagNames };
+}
+
+export async function getCommitHistory(repoUrl, selectionName) {
+  const { owner, repo } = parseRepoUrl(repoUrl);
+  const correctedRef = selectionName.replace("refs/branches/", "refs/heads/");
+  console.log(`Buscando commit base de ${correctedRef}...`);
+  const rootQuery = `
+  query($owner: String!, $repo: String!, $ref: String!) {
+    repository(owner: $owner, name: $repo) {
+      ref(qualifiedName: $ref) {
+        target {
+          ... on Commit {
+            oid
+            committedDate
+            messageHeadline
+          }
+          ... on Tag {
+            target {
+              ... on Commit {
+                oid
+                committedDate
+                messageHeadline
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+  const rootData = await graphqlRequest(rootQuery, {
+    owner,
+    repo,
+    ref: correctedRef,
+  });
+  const rootTarget =
+    rootData.repository?.ref?.target?.target ||
+    rootData.repository?.ref?.target;
+  const rootCommitSha = rootTarget?.oid;
+  const rootDate = new Date(rootTarget?.committedDate);
+  const rootMessage = rootTarget?.messageHeadline || correctedRef;
+  if (!rootCommitSha)
+    throw new Error(`No se pudo obtener el commit base de ${correctedRef}.`);
+  const since = new Date(rootDate);
+  since.setMonth(since.getMonth() - 9);
+  const sinceISO = since.toISOString();
+  console.log(
+    `Extrayendo commits desde ${sinceISO} (9 meses antes de ${rootDate.toISOString()})`
+  );
+
+  const commitsQuery = `
+  query($owner: String!, $repo: String!, $sha: String!, $since: GitTimestamp!, $cursor: String) {
+    repository(owner: $owner, name: $repo) {
+      object(expression: $sha) {
+        ... on Commit {
+          history(since: $since, first: 100, after: $cursor) {
+            pageInfo { hasNextPage endCursor }
+            nodes {
+              oid
+              committedDate
+              messageHeadline
+            }
+          }
+        }
+      }
+    }
+  }
+`;
+
+  let hasNextPage = true;
+  let endCursor = null;
+  const allCommits = [];
+  const MAX_COMMITS = 1000;
+  while (hasNextPage && allCommits.length < MAX_COMMITS) {
+    const data = await graphqlRequest(commitsQuery, {
+      owner,
+      repo,
+      sha: rootCommitSha,
+      since: sinceISO,
+      cursor: endCursor,
+    });
+
+    const history = data.repository?.object?.history;
+    const nodes = history?.nodes || [];
+    allCommits.push(...nodes);
+
+    if (allCommits.length >= MAX_COMMITS) {
+      console.log(`Límite alcanzado: ${MAX_COMMITS} commits.`);
+      allCommits.splice(MAX_COMMITS);
+      break;
+    }
+
+    hasNextPage = history?.pageInfo?.hasNextPage;
+    endCursor = history?.pageInfo?.endCursor;
+
+    console.log(`${allCommits.length} commits acumulados...`);
+    if (!hasNextPage) break;
+  }
+
+  const results = allCommits.map((c, i) => ({
+    sha: c.oid,
+    parentSha: allCommits[i + 1]?.oid || null,
+    childSha: allCommits[i - 1]?.oid || null,
+    date: c.committedDate,
+    name: c.messageHeadline || null,
+  }));
+
+  if (results.length > 0) {
+    results[0].name = rootMessage || correctedRef;
+  }
+
+  console.log(
+    `${
+      results.length
+    } commits obtenidos desde ${sinceISO} hasta ${rootDate.toISOString()}`
+  );
+  return results;
+}
+
 export async function buildCommitTag(repoUrl, tagName) {
   const { owner, repo } = parseRepoUrl(repoUrl);
   console.log(`Buscando commit base del tag ${tagName}...`);
